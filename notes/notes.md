@@ -165,6 +165,8 @@ This provides a starting point for further testing and performance analysis. Ded
 
 ![PicoRV32 Test Execution](images/Screenshot%20From%202026-10-14%2007-37-15.png)
 
+![PicoRV32 Test Results](images/Screenshot%20From%202026-10-14%2007-37-29.png)
+
 
 
 
