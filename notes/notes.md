@@ -436,7 +436,7 @@ The CPI and DMIPS/MHz calculations agree with the reported values. The experimen
 Further work should validate the counter implementation and measurement configuration before using these results for rigorous comparisons with other processor cores.
 
 ### 11. Evidence
-
+[Dhrystone Instruction Timing Results](images/Screenshot%20From%202026-10-14%2009-21-29.png)
 
 
 
