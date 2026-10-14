@@ -162,3 +162,12 @@ This experiment is an initial regression simulation. It should not be presented 
 The initial PicoRV32 regression simulation ran successfully and reported `ALL TESTS PASSED`.
 
 This provides a starting point for further testing and performance analysis. Dedicated benchmark workloads and verified measurement methods are still required before drawing conclusions about processor performance.
+
+
+
+
+
+
+
+
+
