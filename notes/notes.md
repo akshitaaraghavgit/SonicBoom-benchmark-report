@@ -190,7 +190,8 @@ running the Dhrystone workload on the simulated PicoRV32 processor.
 ```bash
 cd ~/picorv32/dhrystone
 make timing USE_MYSTDLIB=1 TOOLCHAIN_PREFIX=/usr/bin/riscv64-unknown-elf-
-![Dhrystone timing results](images/dhrystone-timing-results.png)
+```
+[Dhrystone timing results](images/dhrystone-timing-results.png)
 
 
 
