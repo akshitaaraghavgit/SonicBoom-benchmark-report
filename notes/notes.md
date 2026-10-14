@@ -194,6 +194,259 @@ make timing USE_MYSTDLIB=1 TOOLCHAIN_PREFIX=/usr/bin/riscv64-unknown-elf-
 ![Dhrystone Timing Results](images/Screenshot%20From%202026-10-14%2009-21-29.png)
 
 
+---
+
+## Test 03: Dhrystone Baseline Performance Benchmark
+
+### 1. Objective
+
+The objective of this test was to execute the Dhrystone benchmark on the PicoRV32 processor simulation and collect baseline performance metrics.
+
+Unlike Test 02, which focused on instruction-level timing analysis, this test focuses on the overall benchmark execution and its reported performance metrics.
+
+The experiment helps us understand how many instructions are executed, how many simulated clock cycles are consumed, and how efficiently the processor executes the workload.
+
+### 2. Environment
+
+| Component | Details |
+|---|---|
+| Processor | PicoRV32 |
+| Benchmark | Dhrystone |
+| Execution environment | Ubuntu Linux |
+| Simulation tool | Icarus Verilog (`iverilog` and `vvp`) |
+| Compiler | RISC-V GCC |
+| Instruction set | RV32IM |
+| Optimization | `-O3` |
+| Execution type | RTL simulation |
+
+### 3. Commands Used
+
+First, navigate to the Dhrystone directory:
+
+```bash
+cd ~/picorv32/dhrystone
+```
+
+Run the benchmark using the custom standard library:
+
+```bash
+make test USE_MYSTDLIB=1 TOOLCHAIN_PREFIX=/usr/bin/riscv64-unknown-elf- 2>&1 | tee /tmp/dhrystone-run.log
+```
+
+This command builds and runs the Dhrystone testbench. The output is displayed in the terminal and saved to `/tmp/dhrystone-run.log` for later inspection.
+
+To extract the important results:
+
+```bash
+grep -E 'Number_Of_Runs|User_Time|User_Insn|Cycles_Per_Instruction|Dhrystones_Per_Second_Per_MHz|DMIPS_Per_MHz|Execution ends|TRAP|should be:' /tmp/dhrystone-run.log
+```
+
+This filters the log to show the benchmark's reported metrics and selected functional-check messages.
+
+### 4. Understanding the Build and Execution Flow
+
+The benchmark execution follows this sequence:
+
+1. **C source code:** Dhrystone is implemented in C across files such as `dhry_1.c` and `dhry_2.c`.
+2. **Compilation:** RISC-V GCC compiles the source code for the RV32IM instruction set.
+3. **Linking:** The compiled object files are combined to produce the executable used by the testbench.
+4. **Hex generation:** The program is converted into a memory image that the simulation can load.
+5. **RTL simulation:** Icarus Verilog runs the PicoRV32 testbench, which executes the compiled program.
+6. **Metric collection:** The benchmark reports its run count, instruction count, cycle count, CPI, and normalized performance metrics.
+7. **Termination:** The testbench terminates after the benchmark finishes.
+
+The `USE_MYSTDLIB=1` option selects the project's custom library configuration. This was necessary because the default build initially failed due to a missing `stdio.h` header in the available toolchain environment.
+
+The `TOOLCHAIN_PREFIX` option overrides the compiler prefix configured in the Makefile so that the installed RISC-V compiler can be used.
+
+### 5. Actual Benchmark Results
+
+The simulation reported the following results:
+
+| Metric | Result |
+|---|---:|
+| Number of Runs | 100 |
+| Simulated Clock Cycles (`User_Time`) | 139,391 |
+| Instructions Executed (`User_Insn`) | 35,725 |
+| Cycles Per Instruction (CPI) | 3.901 |
+| Dhrystones Per Second Per MHz | 717 |
+| DMIPS Per MHz | 0.408 |
+
+These are the results reported by the benchmark under the current simulation and configuration.
+
+### 6. Explanation of the Metrics
+
+#### A. Number of Runs
+
+```text
+Number_Of_Runs: 100
+```
+
+The benchmark completed 100 Dhrystone iterations/runs according to its configured run count.
+
+A run count is the workload size used by the benchmark. It is not a performance score by itself.
+
+#### B. User_Time
+
+```text
+User_Time: 139391 cycles
+```
+
+This is the cycle count reported by the benchmark's timing mechanism.
+
+It represents the simulated processor cycles counted by the current implementation. It should not automatically be interpreted as elapsed wall-clock time or as a physical FPGA measurement.
+
+#### C. User_Insn
+
+```text
+User_Insn: 35725 insn
+```
+
+The benchmark reported 35,725 executed instructions.
+
+This value represents the instruction count reported by the benchmark's instrumentation. Its exact scope depends on how the counter is implemented in this test setup.
+
+#### D. Cycles Per Instruction (CPI)
+
+CPI measures the average number of clock cycles required per executed instruction.
+
+Formula:
+
+```text
+CPI = Total Clock Cycles / Total Instructions
+```
+
+Using the reported values:
+
+```text
+CPI = 139391 / 35725
+CPI ≈ 3.901
+```
+
+The calculated value agrees with the reported CPI.
+
+A lower CPI generally indicates fewer cycles per instruction for the measured workload. However, CPI alone does not establish which processor is faster because clock frequency, instruction count, workload, and measurement methodology also matter.
+
+#### E. Dhrystones Per Second Per MHz
+
+```text
+Dhrystones_Per_Second_Per_MHz: 717
+```
+
+This is the normalized Dhrystone performance value reported by the benchmark.
+
+It expresses the reported Dhrystone throughput normalized by clock frequency in MHz, according to the benchmark's timing and calculation logic.
+
+The value should be compared with other results only when the benchmark version, compiler options, workload, counter implementation, and measurement method are sufficiently consistent.
+
+#### F. DMIPS Per MHz
+
+```text
+DMIPS_Per_MHz: 0.408
+```
+
+DMIPS means *Dhrystone Millions of Instructions Per Second*.
+
+The benchmark uses a reference value of 1757 Dhrystones per second to calculate its normalized DMIPS result.
+
+The calculation is:
+
+```text
+DMIPS/MHz = Dhrystones per Second per MHz / 1757
+```
+
+Using the reported value:
+
+```text
+DMIPS/MHz = 717 / 1757
+DMIPS/MHz ≈ 0.408
+```
+
+This agrees with the reported result.
+
+DMIPS/MHz is a benchmark-specific normalized metric. It should not be treated as a universal measure of processor performance.
+
+### 7. Functional Output Verification
+
+The benchmark also prints expected and actual values for selected variables.
+
+Examples from the output include:
+
+```text
+Int_Glob: 5
+Bool_Glob: 1
+Ch_1_Glob: A
+Ch_2_Glob: B
+Arr_1_Glob[8]: 7
+Arr_2_Glob[8][7]: 110
+```
+
+The benchmark compares these values with expected results to check whether its workload is producing the expected program state.
+
+For example:
+
+```text
+Number_Of_Runs = 100
+Expected Arr_2_Glob[8][7] = Number_Of_Runs + 10
+                            = 100 + 10
+                            = 110
+```
+
+The observed value of 110 matches this expected value.
+
+These checks provide evidence of functional execution, while the reported metrics provide information about the measured workload.
+
+### 8. Why This Test Matters
+
+This experiment establishes a baseline for measuring PicoRV32 performance using a software benchmark.
+
+It demonstrates how to:
+
+- Build a C benchmark for a RISC-V target.
+- Execute the compiled program in an RTL simulation.
+- Inspect instruction and cycle counts reported by the benchmark.
+- Calculate and interpret CPI.
+- Understand normalized Dhrystone and DMIPS/MHz metrics.
+- Record reproducible experimental results for future comparisons.
+
+The same general workflow can be used when evaluating other processors or benchmark programs, provided the build and measurement configurations are adapted appropriately.
+
+### 9. Limitations and Important Notes
+
+1. **Simulation, not physical hardware:** These results were obtained from an RTL simulation, not from running the benchmark on an FPGA board.
+
+2. **Counter implementation matters:** The interpretation of `User_Time` and `User_Insn` depends on the benchmark's counter implementation. These values should be inspected before using them for rigorous processor comparisons.
+
+3. **Compiler configuration matters:** Compiler version, optimization level, ABI, instruction set, and library configuration can affect benchmark behavior and results.
+
+4. **Dhrystone is a synthetic benchmark:** It represents a particular style of integer workload and does not represent every real-world application.
+
+5. **No universal performance ranking:** The reported DMIPS/MHz value should not be used alone to conclude that one processor is faster than another.
+
+6. **Termination output:** The log ends with `TRAP`. In this simulation, termination output must be interpreted in the context of the testbench and its exit mechanism; the word alone does not establish that the benchmark failed.
+
+### 10. Conclusion
+
+The Dhrystone benchmark was executed in the PicoRV32 RTL simulation with 100 runs.
+
+The benchmark reported 139,391 cycles, 35,725 instructions, a CPI of 3.901, 717 Dhrystones per second per MHz, and 0.408 DMIPS/MHz.
+
+The CPI and DMIPS/MHz calculations agree with the reported values. The experiment establishes an initial performance baseline and demonstrates the workflow for compiling, simulating, and evaluating a RISC-V software benchmark.
+
+Further work should validate the counter implementation and measurement configuration before using these results for rigorous comparisons with other processor cores.
+
+### 11. Evidence
+
+Add a screenshot of the terminal output showing the benchmark results.
+
+![Dhrystone Baseline Performance Results](images/dhrystone-baseline-results.png)
+
+*Figure: Dhrystone benchmark results from the PicoRV32 RTL simulation.*
+
+---
+
+
+
 
 
 
