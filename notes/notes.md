@@ -167,6 +167,29 @@ This provides a starting point for further testing and performance analysis. Ded
 
 ![PicoRV32 Test Results](images/Screenshot%20From%202026-10-14%2007-37-29.png)
 
+# Test 02: Dhrystone Instruction Timing Analysis
+
+## Objective
+
+Analyze instruction-level timing information produced while
+running the Dhrystone workload on the simulated PicoRV32 processor.
+
+## Environment
+
+- Operating system: Ubuntu
+- Processor under test: PicoRV32
+- Simulation tool: Icarus Verilog (`iverilog` and `vvp`)
+- Compiler: RISC-V GCC
+- Workload: Dhrystone
+- Timing output: `dhrystone/timing.txt`
+
+## Command
+
+```bash
+cd ~/picorv32/dhrystone
+make timing USE_MYSTDLIB=1 TOOLCHAIN_PREFIX=/usr/bin/riscv64-unknown-elf-
+
+
 
 
 
