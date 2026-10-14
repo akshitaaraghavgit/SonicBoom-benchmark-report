@@ -437,6 +437,7 @@ Further work should validate the counter implementation and measurement configur
 
 ### 11. Evidence
 [Dhrystone Instruction Timing Results](images/Screenshot%20From%202026-10-14%2009-21-29.png)
+[Dhrystone Instruction Timing Results](images/Screenshot%20From%202026-10-14%2009-21-29.png)
 
 
 
