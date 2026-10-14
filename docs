@@ -1,67 +1,59 @@
 # Environment Setup and Verification
+# PicoRV32 Benchmarking: Environment Setup
 
-## 1. Objective
+## 1. Project Overview
 
-Verify that the development environment contains the required source files and tools to simulate and evaluate the PicoRV32 RISC-V processor.
+This project aims to benchmark the PicoRV32 RISC-V processor core
+and study its performance using software benchmarks and simulation.
 
-## 2. Working Directory
+This document records the initial environment checks and RISC-V
+compiler verification performed on Ubuntu.
+
+## 2. Development Environment
+
+| Component | Details |
+|-----------|---------|
+| Operating System | Ubuntu 26.04.1 LTS |
+| Build System | GNU Make |
+| Version Control | Git |
+| Native Compiler | GCC |
+| HDL Simulator | Icarus Verilog |
+| Simulation Runtime | VVP |
+| RISC-V Compiler | riscv64-unknown-elf-gcc |
+| RISC-V Compiler Version | GCC 14.2.0 |
+
+## 3. Project Directories
+
+PicoRV32 source repository:
+
+`~/picorv32`
+
+Benchmarking repository:
+
+`~/picorv32-benchmarking`
+
+The PicoRV32 source and benchmarking documentation are maintained
+in separate directories.
+
+## 4. Environment Verification
+
+The following development tools were found in the environment:
+
+- Git
+- GNU Make
+- GCC
+- Icarus Verilog (`iverilog`)
+- VVP
+- RISC-V GCC (`riscv64-unknown-elf-gcc`)
+
+The command `riscv32-unknown-elf-gcc` was not found in the system PATH.
+
+## 5. RISC-V Compiler Verification
+
+### Compiler identification
+
+Command:
 
 ```bash
-cd ~/picorv32
-pwd
-ls
-```
-
-**Purpose:**
-- `cd` navigates to the PicoRV32 repository.
-- `pwd` confirms the current working directory.
-- `ls` lists the available source files, testbenches and build scripts.
-
-## 3. Toolchain Verification
-
-```bash
-which iverilog
-which vvp
-make --version
-```
-
-**Purpose:**
-- Icarus Verilog compiles Verilog source files.
-- VVP executes the compiled simulation.
-- GNU Make automates the build and test procedure.
-
-## 4. Verification Status
-
-Record the actual outcome of each check.
-
-| Check | Status | Evidence |
-|---|---|---|
-| Repository accessible | Pending | Terminal output |
-| PicoRV32 source available | Pending | File listing |
-| Icarus Verilog available | Pending | `which iverilog` |
-| VVP available | Pending | `which vvp` |
-| GNU Make available | Pending | Version output |
-| Basic simulation passes | Pending | Test log |
-
-## 5. Next Step
-
-After verifying the environment, run a suitable PicoRV32 testbench and record the simulation outcome before beginning performance measurements.
-## 6. Initial Simulation Test
-
-### Objective
-Verify that the PicoRV32 simulation environment can
-compile and execute a test.
-
-### Procedure
-The available test targets were inspected in the Makefile.
-The selected test was run using GNU Make.
-
-### Result
-Pending — update after running the test.
-
-### Interpretation
-A successful test provides evidence that the selected
-test scenario executed as expected. It does not, by itself,
-establish the processor's performance in MIPS or CPI.
-
+riscv64-unknown-elf-gcc -dumpmachine
 
