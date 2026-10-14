@@ -437,15 +437,6 @@ Further work should validate the counter implementation and measurement configur
 
 ### 11. Evidence
 
-Add a screenshot of the terminal output showing the benchmark results.
-
-![Dhrystone Baseline Performance Results](images/dhrystone-baseline-results.png)
-
-*Figure: Dhrystone benchmark results from the PicoRV32 RTL simulation.*
-
----
-
-
 
 
 
