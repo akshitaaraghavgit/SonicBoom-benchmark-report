@@ -163,8 +163,7 @@ The initial PicoRV32 regression simulation ran successfully and reported `ALL TE
 
 This provides a starting point for further testing and performance analysis. Dedicated benchmark workloads and verified measurement methods are still required before drawing conclusions about processor performance.
 
-
-notes/images/Screenshot From 2026-10-14 07-37-15.png
+![PicoRV32 Test Execution](images/Screenshot%20From%202026-10-14%2007-37-15.png)
 
 
 
