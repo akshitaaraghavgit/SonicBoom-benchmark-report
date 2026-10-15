@@ -440,6 +440,705 @@ Further work should validate the counter implementation and measurement configur
 [Dhrystone Instruction Timing Results](images/Screenshot%20From%202026-10-14%2009-21-29.png)
 [Dhrystone Performance Results](images/Screenshot%20From%202026-10-14%2009-58-45.png)
 
+# CoreMark Benchmarking on Linux and RISC-V
+
+## 1. Project Overview
+
+This project documents the process of setting up, compiling, running, and validating the EEMBC CoreMark benchmark on Ubuntu Linux.
+
+The long-term objective is to execute CoreMark on the PicoRV32 RISC-V processor through RTL simulation and study its performance.
+
+The first milestone was to successfully run and validate CoreMark on the native Linux host.
+
+### Project Goals
+
+- Understand the CoreMark benchmarking workflow.
+- Set up the official CoreMark source code.
+- Configure the build environment.
+- Compile and execute the benchmark.
+- Resolve build and linking issues.
+- Validate the benchmark output.
+- Record execution time and iterations per second.
+- Prepare for future PicoRV32 benchmarking.
+
+---
+
+## 2. What Is CoreMark?
+
+CoreMark is a processor benchmark developed by EEMBC to measure the performance of CPU cores.
+
+It executes several computational workloads, including:
+
+- Linked-list processing
+- Matrix operations
+- State-machine processing
+- CRC calculations
+
+These workloads help evaluate different aspects of processor performance.
+
+CoreMark is useful when comparing processor implementations, provided that the compiler, compiler flags, benchmark configuration, and execution environment are reported correctly.
+
+### Important Metric
+
+CoreMark reports the number of benchmark iterations completed per second.
+
+A higher iterations-per-second value indicates higher throughput for the particular benchmark configuration.
+
+However, results should only be compared when the execution environments and benchmark configurations are comparable.
+
+---
+
+## 3. Development Environment
+
+### Hardware and Software
+
+| Component | Details |
+|---|---|
+| Operating System | Ubuntu Linux |
+| Benchmark | EEMBC CoreMark |
+| Compiler | GCC 15.2.0 for the successful host run |
+| Compiler Optimization | `-O2` |
+| Benchmark Configuration | `PERFORMANCE_RUN` |
+| Final Iterations | 500,000 |
+| Host Execution Type | Native Linux executable |
+| Future Target | PicoRV32 RISC-V processor |
+
+### Directories Used
+
+CoreMark source directory:
+
+```text
+~/coremark-benchmark
+```
+
+Important files and directories:
+
+```text
+coremark-benchmark/
+├── Makefile
+├── README.md
+├── LICENSE.md
+├── core_main.c
+├── core_list_join.c
+├── core_matrix.c
+├── core_state.c
+├── core_util.c
+├── coremark.h
+├── barebones/
+├── linux/
+├── posix/
+└── results/
+```
+
+The `results/` directory is used to store benchmark logs and reports.
+
+---
+
+## 4. Downloading CoreMark
+
+The official CoreMark source code was cloned from EEMBC's GitHub repository.
+
+Command:
+
+```bash
+mkdir -p ~/coremark-benchmark
+cd ~/coremark-benchmark
+git clone https://github.com/eembc/coremark.git .
+```
+
+The source directory was inspected using:
+
+```bash
+ls
+```
+
+The repository contained the CoreMark source files, Makefile, platform-specific configurations, and documentation.
+
+Official source repository:
+
+https://github.com/eembc/coremark
+
+---
+
+## 5. Understanding the CoreMark Source Files
+
+### `core_main.c`
+
+Contains the main benchmark execution logic.
+
+It coordinates the benchmark workload and performs the required initialization and validation.
+
+### `core_list_join.c`
+
+Contains linked-list processing operations used by the benchmark.
+
+These operations exercise pointer manipulation and data-structure processing.
+
+### `core_matrix.c`
+
+Contains matrix-related computational workloads.
+
+These operations exercise arithmetic and data-processing operations.
+
+### `core_state.c`
+
+Contains state-machine processing workloads.
+
+These operations exercise state transitions and associated computations.
+
+### `core_util.c`
+
+Contains utility functions used by the benchmark.
+
+### `coremark.h`
+
+Contains common definitions, data structures, and declarations used by the benchmark source files.
+
+### `core_portme.h` and `core_portme.c`
+
+These files are part of the platform-porting layer.
+
+They provide platform-dependent definitions and functions needed to run CoreMark on a particular environment.
+
+The platform port is important because timing, input/output, and other system-dependent operations may differ between a native Linux system and a simulated processor.
+
+---
+
+## 6. Initial RISC-V Cross-Compilation Attempt
+
+The initial objective was to prepare CoreMark for a 32-bit RISC-V environment.
+
+The installed cross-compiler was:
+
+```text
+riscv64-unknown-elf-gcc
+```
+
+Its target architecture was checked with:
+
+```bash
+riscv64-unknown-elf-gcc -dumpmachine
+```
+
+The output was:
+
+```text
+riscv64-unknown-elf
+```
+
+The intended compilation settings included:
+
+```text
+-march=rv32im
+-mabi=ilp32
+-O2
+```
+
+These settings request RV32IM code generation, the ILP32 ABI, and optimization.
+
+### Initial Compilation Command
+
+```bash
+cd ~/coremark-benchmark
+
+make -B PORT_DIR=barebones \
+ITERATIONS=10 \
+CC=riscv64-unknown-elf-gcc \
+XCFLAGS="-march=rv32im -mabi=ilp32 -O2" \
+compile
+```
+
+The `-B` option forces Make to rebuild targets.
+
+### Compilation Result
+
+The CoreMark source files compiled into object files, including:
+
+```text
+core_list_join.o
+core_main.o
+core_matrix.o
+core_state.o
+core_util.o
+```
+
+The object files were verified with:
+
+```bash
+ls -lh core*.o
+```
+
+The compilation stage was successful after addressing a missing `size_t` declaration in the barebones port header.
+
+The following include was inserted before the `size_t` typedef:
+
+```c
+#include <stddef.h>
+```
+
+This header provides the definition of `size_t`.
+
+**Important:** Successful compilation of object files does not mean that the complete benchmark has been linked or executed.
+
+---
+
+## 7. Initial Linking Failure
+
+The next step attempted to link the RISC-V object files into an executable.
+
+The first linking attempt failed because the barebones configuration specified:
+
+```makefile
+LD = gld
+```
+
+The linker command could not find `gld`.
+
+### Linker Configuration Change
+
+The linker setting was changed using:
+
+```bash
+cd ~/coremark-benchmark
+
+sed -i 's/^LD[[:space:]]*=.*/LD = $(CC)/' barebones/core_portme.mak
+```
+
+This changed the linker driver setting to use the configured compiler.
+
+### Second Linking Failure
+
+The subsequent linking attempt reported missing components:
+
+```text
+cannot find crt0.o
+cannot find -lc
+cannot find -lgloss
+```
+
+These errors indicated that the required startup code and libraries were unavailable for that build configuration.
+
+The cross-compiled CoreMark executable was therefore not successfully produced through this barebones build attempt.
+
+**Conclusion:** This cross-compilation attempt did not produce a valid PicoRV32 benchmark result. A suitable runtime, linker configuration, and processor-simulation integration are still required.
+
+---
+
+## 8. Switching to the Linux Host Port
+
+To get an actual CoreMark execution and verify the benchmark workflow, the Linux port was used.
+
+The Linux port runs the benchmark as a native Linux executable.
+
+This is different from running a cross-compiled program on a simulated RISC-V processor.
+
+### Initial Host Test
+
+The benchmark was built and executed using:
+
+```bash
+cd ~/coremark-benchmark
+
+make clean
+
+make PORT_DIR=linux ITERATIONS=10 CC=gcc
+```
+
+The execution generated log files, including:
+
+```text
+run1.log
+run2.log
+```
+
+The logs were inspected using:
+
+```bash
+cat run1.log
+```
+
+and:
+
+```bash
+cat run2.log
+```
+
+### Initial Result
+
+The initial test reported:
+
+```text
+Total ticks      : 0
+Total time (secs): 0.000000
+Iterations       : 10
+```
+
+The benchmark also reported:
+
+```text
+ERROR! Must execute for at least 10 secs for a valid result!
+```
+
+This meant that the run was too short to produce a valid timed result.
+
+---
+
+## 9. Increasing the Iteration Count
+
+The number of benchmark iterations was increased to obtain a sufficiently long run.
+
+### Test with 10,000 Iterations
+
+Command:
+
+```bash
+cd ~/coremark-benchmark
+
+make clean
+
+make PORT_DIR=linux ITERATIONS=10000 CC=gcc
+```
+
+The result reported:
+
+```text
+Total ticks      : 1033
+Total time (secs): 1.033000
+Iterations/Sec   : 9680.542110
+Iterations       : 10000
+```
+
+The benchmark still failed the minimum execution-time requirement.
+
+### Test with 200,000 Iterations
+
+Command:
+
+```bash
+cd ~/coremark-benchmark
+
+make clean
+
+make PORT_DIR=linux ITERATIONS=200000 CC=gcc
+```
+
+The result reported:
+
+```text
+Total ticks      : 5195
+Total time (secs): 5.195000
+Iterations/Sec   : 38498.556304
+Iterations       : 200000
+```
+
+The benchmark again reported that execution must last at least 10 seconds.
+
+### Final Test with 500,000 Iterations
+
+The iteration count was increased to 500,000.
+
+Command:
+
+```bash
+cd ~/coremark-benchmark
+
+make clean
+
+make PORT_DIR=linux ITERATIONS=500000 CC=gcc
+```
+
+This produced a run longer than 10 seconds and passed the benchmark's correctness validation.
+
+---
+
+## 10. Final Successful Host Benchmark
+
+### Recorded Output
+
+```text
+2K performance run parameters for coremark.
+CoreMark Size    : 666
+Total ticks      : 13531
+Total time (secs): 13.531000
+Iterations/Sec   : 36952.183874
+Iterations       : 500000
+Compiler version : GCC15.2.0
+Compiler flags   : -O2 -DPERFORMANCE_RUN=1  -lrt
+Memory location  : Please put data memory location here
+seedcrc          : 0xe9f5
+[0]crclist       : 0xe714
+[0]crcmatrix     : 0x1fd7
+[0]crcstate      : 0x8e3a
+[0]crcfinal      : 0xbd59
+Correct operation validated. See README.md for run and reporting rules.
+CoreMark 1.0 : 36952.183874 / GCC15.2.0
+```
+
+### Final Result Summary
+
+| Metric | Result |
+|---|---:|
+| Benchmark | CoreMark 1.0 |
+| CoreMark Size | 666 |
+| Iterations | 500,000 |
+| Total Ticks | 13,531 |
+| Total Execution Time | 13.531 seconds |
+| Iterations per Second | 36,952.183874 |
+| Compiler | GCC 15.2.0 |
+| Optimization | `-O2` |
+| Run Configuration | `PERFORMANCE_RUN=1` |
+| Correctness Validation | Passed |
+| Execution Environment | Native Linux host |
+
+### Final Status
+
+**PASS — CoreMark host execution and correctness validation completed.**
+
+The recorded result is:
+
+```text
+CoreMark 1.0 : 36952.183874 / GCC15.2.0
+```
+
+This is a host-specific result and must not be presented as a PicoRV32 performance score.
+
+---
+
+## 11. Saving the Benchmark Results
+
+The benchmark results can be stored in a dedicated directory.
+
+Create the directory:
+
+```bash
+cd ~/coremark-benchmark
+
+mkdir -p results
+```
+
+Copy the successful benchmark log:
+
+```bash
+cp run1.log results/coremark-linux-host.log
+```
+
+Create a Markdown report:
+
+```bash
+nano results/coremark-linux-host.md
+```
+
+Suggested report:
+
+```markdown
+# CoreMark Linux Host Benchmark
+
+## Status
+
+PASS — correctness validation completed.
+
+## Configuration
+
+- Benchmark: CoreMark 1.0
+- CoreMark Size: 666
+- Iterations: 500000
+- Compiler: GCC 15.2.0
+- Compiler flags: -O2 -DPERFORMANCE_RUN=1
+- Platform: Ubuntu Linux host
+
+## Results
+
+- Total ticks: 13531
+- Total time: 13.531 seconds
+- Iterations per second: 36952.183874
+
+## Validation
+
+The benchmark reported:
+
+Correct operation validated.
+
+## Scope
+
+This is a native Linux host result.
+
+It is not a PicoRV32 RTL simulation result.
+
+A separate RISC-V build and PicoRV32 simulation are required to
+measure benchmark performance on the processor.
+```
+
+Save the file in Nano using:
+
+1. `Ctrl + O`
+2. Press `Enter`
+3. `Ctrl + X`
+
+---
+
+## 12. Understanding the Result
+
+### What Does Iterations per Second Mean?
+
+The reported metric is:
+
+```text
+Iterations/Sec = 36952.183874
+```
+
+It represents the number of CoreMark iterations completed per second on the tested host under the recorded configuration.
+
+It is a throughput metric.
+
+It should not be interpreted as the number of CPU instructions executed per second.
+
+### Why Was the First Result Invalid?
+
+The first runs were too short.
+
+CoreMark requires a sufficiently long execution interval for a valid timed result.
+
+Increasing the iteration count increased the total execution time until the benchmark passed this requirement.
+
+### What Does "Correct Operation Validated" Mean?
+
+CoreMark checks the correctness of its workload using expected results and CRC checks.
+
+The final run reported:
+
+```text
+Correct operation validated.
+```
+
+This indicates that the benchmark's correctness checks passed for that execution.
+
+### Why Must the Platform Be Reported?
+
+A native Linux executable uses the host computer's processor and operating system.
+
+A PicoRV32 simulation executes instructions through a simulated RISC-V core.
+
+The two environments have different execution characteristics and cannot be treated as equivalent.
+
+---
+
+## 13. Host Benchmark vs. PicoRV32 Benchmark
+
+| Property | Linux Host Test | PicoRV32 Simulation |
+|---|---|---|
+| Execution environment | Native Linux | RTL processor simulation |
+| Compiler target | Host architecture | RISC-V architecture |
+| CPU executing the program | Host CPU | Simulated PicoRV32 |
+| Timing source | Host timing facilities | Simulation cycles or a defined processor timer |
+| Result obtained | 36,952.183874 iterations/second | Not yet measured |
+| Correctness validation | Passed | Pending |
+| Suitable for reporting as a PicoRV32 score? | No | Yes, after successful execution and validation |
+
+A meaningful PicoRV32 benchmark requires a suitable startup/runtime environment, memory configuration, program-loading procedure, and simulation testbench.
+
+The benchmark must execute on the simulated processor rather than merely compile into a RISC-V binary.
+
+---
+
+## 14. Planned PicoRV32 Benchmarking Workflow
+
+The next phase is to run CoreMark on PicoRV32.
+
+The planned workflow is:
+
+1. Configure CoreMark for a freestanding RISC-V environment.
+2. Provide the required startup code and linker script.
+3. Implement or adapt the CoreMark platform functions.
+4. Configure the memory layout.
+5. Compile CoreMark for the supported PicoRV32 instruction set.
+6. Convert the executable into a format supported by the simulation.
+7. Load the program into PicoRV32's memory.
+8. Run the RTL simulation.
+9. Capture the benchmark output and execution status.
+10. Measure simulation cycles using a defined method.
+11. Verify CoreMark correctness.
+12. Record the compiler configuration and simulation settings.
+13. Document the results separately from the Linux host results.
+
+The exact implementation depends on the PicoRV32 testbench and runtime already available in the development environment.
+
+---
+
+## 15. Important Benchmarking Considerations
+
+For reproducible results, document:
+
+- Processor or host model
+- Compiler name and version
+- Compiler optimization flags
+- Benchmark version
+- Iteration count
+- Timing method
+- Memory configuration
+- Execution environment
+- Correctness-validation status
+
+Do not compare results without checking whether the benchmark configuration and execution environments are comparable.
+
+A native host result is useful for verifying the benchmark workflow, but it does not establish the performance of a RISC-V processor.
+
+---
+
+## 16. References
+
+### Official CoreMark Repository
+
+https://github.com/eembc/coremark
+
+### PicoRV32 Repository
+
+https://github.com/YosysHQ/picorv32
+
+### CoreMark Documentation
+
+Refer to the official CoreMark README and platform-porting documentation for benchmark execution and reporting requirements.
+
+---
+
+## 17. Project Status
+
+### Completed
+
+- [x] Cloned the official CoreMark repository.
+- [x] Inspected the benchmark source files.
+- [x] Attempted RISC-V cross-compilation.
+- [x] Identified the barebones linker configuration issue.
+- [x] Identified missing startup and library dependencies.
+- [x] Switched to the Linux host port.
+- [x] Executed the benchmark on the host.
+- [x] Increased the iteration count.
+- [x] Obtained an execution longer than 10 seconds.
+- [x] Passed CoreMark correctness validation.
+- [x] Recorded the host benchmark result.
+
+### Pending
+
+- [ ] Complete the freestanding RISC-V build.
+- [ ] Integrate CoreMark with the PicoRV32 simulation.
+- [ ] Execute the benchmark on the simulated processor.
+- [ ] Capture and validate PicoRV32 output.
+- [ ] Measure simulation cycles.
+- [ ] Publish a separate PicoRV32 benchmark report.
+
+---
+
+## Conclusion
+
+This project successfully completed a CoreMark 1.0 host benchmark on Ubuntu Linux.
+
+The final recorded result was:
+
+**36,952.183874 iterations per second**
+
+The benchmark ran for 13.531 seconds and reported successful correctness validation.
+
+The next milestone is to integrate CoreMark with PicoRV32 and measure performance in RTL simulation. That result will be documented separately to distinguish native host performance from simulated RISC-V processor performance.
+
 
 
 
